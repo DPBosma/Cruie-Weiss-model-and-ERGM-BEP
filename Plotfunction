@@ -1,0 +1,129 @@
+# Read information from files
+file = open("StdGlauber.txt", "r")
+VarGlauber = vec(readdlm(file))
+close(file)
+
+file = open("StdExact.txt", "r")
+VarExact = vec(readdlm(file))
+close(file)
+
+file = open("MeanGlauber.txt", "r")
+MeanGlauber = vec(readdlm(file))
+close(file)
+
+file = open("MeanExact.txt", "r")
+MeanExact = vec(readdlm(file))
+close(file)
+
+# Define explanatory variable.
+explanatory = n
+
+# Create regression line for Glauber Dynamics.
+dataG = DataFrame(XG = log(explanatory), YG = log(VarGlauber))
+fitG = lm(YG ~ XG, dataG)
+CG = coef(fitG)
+xg = linspace(minimum(log(explanatory)),maximum(log(explanatory)), 100)
+yg = CG[2]*xg + CG[1]
+
+#Create regression line for Exact version
+dataE = DataFrame(XE = log(explanatory), YE = log(VarExact))
+fitE = lm(YE ~ XE, dataE)
+CE = coef(fitE)
+xe = linspace(minimum(log(explanatory)),maximum(log(explanatory)), 100)
+ye = CE[2]*xe + CE[1]
+
+# Find minimum and maximum value of data.
+MinLV = min(minimum(log(VarGlauber)), minimum(log(VarExact)))
+MaxLV = max(maximum(log(VarGlauber)), maximum(log(VarExact)))
+
+MinV = min(minimum(VarGlauber), minimum(VarExact))
+MaxV = max(maximum(VarGlauber), maximum(VarExact))
+
+# Create real mean line.
+RealMean = RealValueBeta(Hobs, psy, d)
+xm = [minimum(explanatory),maximum(explanatory)]
+ym = [RealMean, RealMean]
+
+# Create mean of Glauber Dynamics line.
+UltraMeanGlauber = mean(MeanGlauber)
+xmg = [minimum(explanatory),maximum(explanatory)]
+ymg = [UltraMeanGlauber, UltraMeanGlauber]
+
+# Create mean of Exact version line.
+UltraMeanExact = mean(MeanExact)
+xme = [minimum(explanatory),maximum(explanatory)]
+yme = [UltraMeanExact, UltraMeanExact]
+
+MinyM = min(minimum(MeanGlauber), minimum(MeanExact), RealMean)
+MaxyM = max(maximum(MeanGlauber), maximum(MeanExact), RealMean)
+close()
+
+
+# Plot datapoints like they can be found in the report.
+subplot(321)
+scatter(log(explanatory), log(VarGlauber), label = "Results")
+xlabel("Log(n )")
+ylabel("Log(standard deviation)")
+title("Log of standard deviation of beta vs log of n")
+plot(xg, yg, label = "Least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(log(explanatory)) - abs(minimum(log(explanatory))-maximum(log(explanatory)))/10, maximum(log(explanatory))+abs(minimum(log(explanatory))-maximum(log(explanatory)))/10])
+ax[:set_ylim](MinLV - abs(MinLV - MaxLV)/10, MaxLV + abs(MinLV - MaxLV)/10)
+
+subplot(323)
+scatter(explanatory, VarGlauber, label = "Results")
+xlabel("n")
+ylabel("standard deviation")
+title("standard deviation of beta vs n")
+plot(e.^xg, e.^yg, label = "Transformed least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim](MinV - abs(MinV - MaxV)/10, MaxV + abs(MinV - MaxV)/10)
+
+subplot(322)
+scatter(log(explanatory), log(VarExact), label = "Results")
+xlabel("Log(n )")
+ylabel("Log(standard deviation)")
+title("Log of standard deviation of beta vs log of n")
+plot(xe, ye, label = "Least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(log(explanatory)) - abs(minimum(log(explanatory))-maximum(log(explanatory)))/10, maximum(log(explanatory))+abs(minimum(log(explanatory))-maximum(log(explanatory)))/10])
+ax[:set_ylim](MinLV - abs(MinLV - MaxLV)/10, MaxLV + abs(MinLV - MaxLV)/10)
+
+subplot(324)
+scatter(explanatory, VarExact, label = "Results")
+xlabel("n")
+ylabel("standard deviation")
+title("standard deviation of beta variating n")
+plot(e.^xe, e.^ye, label = "Transformed least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim](MinV - abs(MinV - MaxV)/10, MaxV + abs(MinV - MaxV)/10)
+
+subplot(325)
+scatter(explanatory, MeanGlauber, label = "Results")
+xlabel("n")
+ylabel("Mean")
+title("Glauber mean of beta vs n")
+plot(xmg, ymg, label = "Mean of data", "r--")
+plot(xm, ym, label = "Real value of beta", "g-.")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim]([MinyM - abs(MinyM -MaxyM)/10, MaxyM + abs(MinyM -MaxyM)/10])
+
+subplot(326)
+scatter(explanatory, MeanExact,  label = "Results")
+xlabel("n")
+ylabel("Mean")
+title("Exact mean of beta vs n")
+plot(xme, yme, label = "Mean of data", "r--")
+plot(xm, ym, label = "Real value of beta", "g-.")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim]([MinyM - abs(MinyM -MaxyM)/10, MaxyM + abs(MinyM -MaxyM)/10])

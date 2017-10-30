@@ -1,0 +1,54 @@
+# Amount of sample groups and number of points to plot.
+numberOfSteps =21
+# Defining length of system in Ising model.
+d=round(Int,linspace(15, 15, numberOfSteps))
+# Value for the arbitrary parameter, psy.
+psy = linspace(0, 0, numberOfSteps)
+# Amount of markov steps in IsingModelAdvanced.
+markovit=round(Int,linspace( 200, 200, numberOfSteps))
+# Amount of data to construct empirical expectation.
+n=round(Int,linspace( 10,210, numberOfSteps))
+# Amount of iterations for convergence.
+convit = 1
+# Amount of data in each sample group.
+varit = 30
+# Maximum value for d when calculating exact distribution.
+tol = 10
+# Real temperature.
+beta_star = 1
+# Obervation with NumberOfNegative negative numbers based on 'd'.
+NumberOfNegative = 5
+obs = CreateObs(d[1], NumberOfNegative)
+# Calculate new obs in model yes/no
+calnew = 0
+#Energy in observation
+Hobs = EnergyAdvanced(obs)
+
+
+# Create vectors of means and stds of most likly values of theta_1 and theta_2 (Glauber dynamics).
+MeanGlauber, StdGlauber = PlotVarExplanatoryMarkov(calnew, numberOfSteps, d, psy, markovit, n, convit, varit, Hobs)
+
+# Create matrices of means and stds of most likly values of theta_1 and theta_2 (Exact distribution).
+if d[numberOfSteps]<=10
+  MeanExact, StdExact = PlotVarExplanatoryExact(numberOfSteps, d, psy, markovit, n, convit, varit, Hobs)
+end
+
+
+# Write information to files
+file = open("StdGlauber.txt", "w+")
+writedlm(file, StdGlauber)
+close(file)
+
+file = open("MeanGlauber.txt", "w+")
+writedlm(file, MeanGlauber)
+close(file)
+
+if d[numberOfSteps]<=10
+  file = open("StdExact.txt", "w+")
+  writedlm(file, StdExact)
+  close(file)
+
+  file = open("MeanExact.txt", "w+")
+  writedlm(file, MeanExact)
+  close(file)
+end

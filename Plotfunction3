@@ -1,0 +1,79 @@
+# Read information from files.
+file = open("StdGlauber.txt", "r")
+StdGlauber = vec(readdlm(file))
+close(file)
+
+file = open("MeanGlauber.txt", "r")
+MeanGlauber = vec(readdlm(file))
+close(file)
+
+
+# Define explanatory variable.
+explanatory = n
+
+# Create regressionline for Glauber Dynamics.
+dataG = DataFrame(XG = explanatory, YG = StdGlauber)
+
+fitG = lm(YG ~ XG, dataG)
+CG = coef(fitG)
+
+xg = linspace(minimum(explanatory),maximum(explanatory), 100)
+yg = CG[2]*xg + CG[1]
+
+
+# Create beta_star line.
+xbs = [minimum(explanatory),maximum(explanatory)]
+ybs = [beta_star, beta_star]
+
+# Create mean of Glauber Dynamics line
+RealMean = RealValueBeta(Hobs, psy, d)
+xmg = [minimum(explanatory),maximum(explanatory)]
+ymg = [RealMean, RealMean]
+
+# Find minimum and maximum values of data.
+MinLV = minimum(log(StdGlauber))
+MaxLV = maximum(log(StdGlauber))
+
+MinV = minimum(StdGlauber)
+MaxV = maximum(StdGlauber)
+
+MinyM = min(minimum(MeanGlauber), RealMean) #beta_star)
+MaxyM = max(maximum(MeanGlauber), RealMean) #beta_star)
+
+
+# Plot datapoints like they can be found in the report.
+close()
+subplot(311)
+scatter(log(explanatory), log(StdGlauber), label = "Results")
+xlabel("Log(markovit)")
+ylabel("Log(standard deviation)")
+title("Log of standard deviation of beta vs log of markovit")
+plot(xg, yg, label = "Least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(log(explanatory)) - abs(minimum(log(explanatory))-maximum(log(explanatory)))/10, maximum(log(explanatory))+abs(minimum(log(explanatory))-maximum(log(explanatory)))/10])
+ax[:set_ylim](MinLV - abs(MinLV - MaxLV)/10, MaxLV + abs(MinLV - MaxLV)/10)
+
+subplot(312)
+scatter(explanatory, StdGlauber, label = "Results")
+xlabel("psy")
+ylabel("standard deviation")
+title("standard deviation of beta vs psy")
+# plot(e.^xg, e.^yg, label = "Transformed least squares regression line", "r--")
+# plot(xg, yg, label = "Least squares regression line", "r--")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim](MinV - abs(MinV - MaxV)/10, MaxV + abs(MinV - MaxV)/10)
+
+subplot(313)
+scatter(explanatory, MeanGlauber, label = "Results")
+xlabel("psy")
+ylabel("beta")
+title("beta vs psy")
+plot(xmg, ymg, label = "Real value of beta", "r--")
+# plot(xbs, ybs, label = "Initual real value of beta", "g-.")
+legend()
+ax = gca()
+ax[:set_xlim]([minimum(explanatory) - abs(minimum(explanatory)-maximum(explanatory))/10, maximum(explanatory)+abs(minimum(explanatory)-maximum(explanatory))/10])
+ax[:set_ylim]([MinyM - abs(MinyM -MaxyM)/10, MaxyM + abs(MinyM -MaxyM)/10])
