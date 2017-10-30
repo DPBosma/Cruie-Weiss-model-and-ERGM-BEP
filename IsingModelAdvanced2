@@ -1,0 +1,278 @@
+# Import all necessary packages.
+using StatsBase
+using Optim
+using PyPlot
+using GLM
+using DataFrames
+
+# Make sure the data, in the form of txt-files, is saved to the right directory.
+if pwd() == "D:\\Documenten\\Studie\\BEP\\Ising Model\\Eindversie"
+  cd("$(pwd())/Data")
+elseif pwd() == "D:\\Documenten\\Studie\\BEP\\Ising Model\\Eindversie\\Data"
+else
+  error("Wrong directory")
+end
+
+
+# Function that gives a vector of means and a vector of std beta, based on the Glauber dynamics.
+function PlotVarExplanatoryMarkov(calnew, numberOfSteps, d, psy, markovit, n, convit, varit, Hobs)
+  # Create empty mean and std vector (1).
+  VarVec = zeros(numberOfSteps)
+  MeanVec = zeros(numberOfSteps)
+
+  # Loop through length of both vectors.
+  for k in 1:numberOfSteps
+    betaVec = zeros(1, varit)
+
+    # If only beta_star should be used, not a given observation, than a observation is construted.
+    if calnew == 1
+      # Create empty vector of energy of observations (2).
+      HobsVec = zeros(varit)
+      for i in 1:varit
+        # Create observation corresponding to beta_star, save energy of the observation to (2).
+        obs = IsingModelAdvanced(d[k], beta_star, markovit[k])
+        HobsVec[i] = EnergyAdvanced(obs)
+      end
+
+      # Best observation corresponding to beta_star.
+      Hobs = mode(HobsVec)
+    end
+
+    # Loop through all elements of sample group.
+    for i = 1:varit
+      # Use the method of MCMCMLE to find the most likely value for beta.
+      beta = find_beta_markov(Hobs, markovit[k], n[k], psy[k], convit, d[k])
+      betaVec[i] = beta
+    end
+
+    # Calculate and save mean and std to vectors. (see (1))
+    VarVec[k] = std(betaVec)
+    MeanVec[k] = mean(betaVec)
+  end
+
+  # Create function output.
+  return MeanVec, VarVec
+end
+
+
+# Function that gives a vector of means and a vector of std beta, based on the exact distribution.
+function PlotVarExplanatoryExact(numberOfSteps, d, psyExact, markovit, n, convit, varit, Hobs)
+  # Create empty mean and std vector (3).
+  VarVecExact = zeros(numberOfSteps)
+  MeanVecExact = zeros(numberOfSteps)
+  # Loop through length of both vectors.
+  for k in 1:numberOfSteps
+    betaVecExact = zeros(1,varit)
+
+    # If variating dimensions are used in one run, then the observations are calculated here.
+    if d[1] != d[numberOfSteps]
+      obs = IsingModelAdvanced(d,beta_star,markovit[k])
+      Hobs = EnergyAdvanced(obs)
+    end
+
+    # Loop through all elements in sample group.
+    for i = 1:varit
+      # Use the method of exact sampling to find the most likely value for beta.
+      betaExact = find_beta_exact(Hobs, markovit[k], n[k], psyExact[k], convit, d[k])
+      betaVecExact[i] = betaExact
+    end
+
+    # Calculate and save mean and std to vectors. (see (3))
+    VarVecExact[k] = std(betaVecExact)
+    MeanVecExact[k] = mean(betaVecExact)
+  end
+
+  # Create function output.
+  return MeanVecExact, VarVecExact
+end
+
+
+# Function that uses the method of MCMCMLE to find the most likely value for beta.
+function find_beta_markov(Hobs, markovit, n, psy, convit, d)
+  # Loop for convit times.
+  for k = 1:convit
+    # Create matrix of all Glauber dynamics outcomes (4).
+    M = zeros(n,d)
+
+    # Loop n times.
+    for i=1:n
+      # Use Glauber dynamics to create a sample from the approached distribution.
+      M[i,:] = IsingModelAdvanced(d,psy, markovit)
+    end
+
+    # Calculate and save the energy corresponding to the observations
+    Hvec = zeros(1,n)
+    for i=1:n
+      Hvec[i] = EnergyAdvanced(M[i,:])
+    end
+
+    # Execute optimalization technique to find root of derivative of log-likelihood function.
+    result = optimize(beta->f(beta, psy, Hobs, Hvec),  -100,100)
+    psy = result.minimizer
+  end
+
+  # Create function output.
+  return psy
+end
+
+
+# Function that uses the method of exact sampling to find most likly values for theta_1 and theta_2.
+function find_beta_exact(Hobs, markovit, n, psy, convit, d)
+  # Loop convit times.
+  for k = 1:convit
+    # Create empty matrix.
+    M = zeros(n,d)
+    # Create WeightVec of probabilities.
+    WV = ExactDist(d,psy)
+    # Create empty vector of energies.
+    Hvec = zeros(1, n)
+
+    # Loop n times.
+    for i = 1:n
+      # sample from 'WV'.
+      k = sample(WV)
+      # Convert 'k' to an observation.
+      M[i,:] = 2*digits(k-1,2,d)-1
+    end
+
+    # Loop n times and calculate energy.
+    for i = 1:n
+      Hvec[i] = EnergyAdvanced(M[i,:])
+    end
+
+    # Execute optimalization technique to find root of derivative of log-likelihood function.
+    result = optimize(beta->f(beta, psy, Hobs, Hvec),  -100,100)
+    psy = result.minimizer
+  end
+
+  # Create function output.
+  psy
+end
+
+
+# Function that uses Glauber dynamics to create a sample of the approached distribution.
+function IsingModelAdvanced(d,beta,it)
+  # Define possible states of kernels.
+  samp=[-1 1]
+
+  # Create empty integer matrix of steps in the Glauber dynamics.
+  modmat=zeros(Int, it, d)
+  # Create random starting situation.
+  mod=rand(samp,d)
+  modmat[1,:]=mod
+
+  # Loop though all steps in the Glauber dynamics.
+  for i = 2:it
+    # Choose a random kernel.
+    j=rand(1:d)
+    S=0
+
+    # Loop through all kernels in the system.
+    for k = 1:d
+      S=S+mod[k]
+    end
+
+    # Calculate probability for a kernel te be positive.
+    S=S/d
+    ppos=(1+tanh(beta*S))/2
+    wv = WeightVec([1-ppos, ppos])
+    # sample from 'samp' with probability 'wv'.
+    mod[j]=sample(samp,wv)
+    modmat[i,:]=mod
+  end
+
+  # Create function output.
+  return modmat[it,:]
+end
+
+
+# Function that calculates the amount of energy in a given system.
+function EnergyAdvanced(vect)
+  d = length(vect)
+  H = 0
+  for i = 1:d
+    for j = 1:d
+      if i!=j
+        H = H - vect[i]*vect[j]
+      else
+        H = H - 2
+      end
+    end
+  end
+  H=H/(d*2)
+  H
+end
+
+
+# Function that constructs the log-likelihood function.
+function f(beta, psy, Hobs, Hvec)
+  loga = 0
+  for i=1:length(Hvec)
+    Energi = Hvec[i]
+    loga = loga + exp((psy-beta)*Energi)
+  end
+  log(exp(-(psy-beta)*Hobs)*(loga/length(Hvec)))
+end
+
+
+# Function that constructs the derivative of the log-likelihood function.
+function g!(beta, psy, Hobs, Hvec)
+  Noemer = 0
+  Deler = 0
+  for i=1:length(Hvec)
+    Energi = Hvec[i]
+    Noemer = Noemer + Energi*exp((psy-beta)*Energi)
+    Deler = Deler + exp((psy-beta)*Energi)
+  end
+  Hobs - Noemer/Deler
+end
+
+
+# Function that creates a WeightVec based on the exact probability distribution
+function ExactDist(d,beta)
+  Vec = zeros(2^d)
+  for i in 1:2^d
+    H = EnergyAdvanced(2 * digits(i-1,2,d) -1)
+    Vec[i] = exp(-beta*H)
+  end
+  C = sum(Vec)
+  Vec = Vec/C
+  WV = WeightVec(Vec)
+end
+
+
+# Function that crates a random observation.
+function CreateObs(d, nonv)
+  Vec = ones(Int, d)
+  samp = sample(1:d, nonv, replace = false)
+  for i in samp
+    Vec[i] = -1
+  end
+  Vec
+end
+
+
+# Function that calculates the normalisation consant used to make the WeightVec.
+function CalculateNorm(d, beta)
+  Vec = zeros(2^d)
+  for i in 1:2^d
+    H = EnergyAdvanced(2 * digits(i-1,2,d) -1)
+    Vec[i] = exp(-beta*H)
+  end
+  C = sum(Vec)
+  return C
+end
+
+
+# Construct exact log likelihood fucntion.
+function ExactLikelihood(Hobs, beta, psy, d)
+  log(exp(-(psy-beta)*Hobs)*(CalculateNorm(d,beta)/CalculateNorm(d,psy)))
+end
+
+
+# Calculate the value of beta, given an observation.
+function RealValueBeta(Hobs, psy,d)
+  result = optimize(beta->ExactLikelihood(Hobs, beta, psy[1], d[1]),  -100,100)
+  psy = result.minimizer
+  return psy
+end
